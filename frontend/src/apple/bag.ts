@@ -12,16 +12,19 @@ const NATIVE_AUTH_HOST = "auth.itunes.apple.com";
 
 // The bag advertises the native auth endpoint without the /fast/ sub-path that
 // the login flow requires; the no-trailing-slash variant 301s to an HTML page.
-// Legacy endpoints on other hosts pass through unchanged.
+// Apple deprecated the legacy buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/authenticate
+// endpoint (returns 204 even with a valid SAP signature), so override it with
+// the native auth endpoint regardless of what the bag says.
 export function normalizeAuthURL(rawURL: string): string {
   let url: URL;
   try {
     url = new URL(rawURL);
   } catch {
-    return rawURL;
+    return defaultAuthURL;
   }
+  // Legacy buy.itunes.apple.com authenticate endpoint is dead — always use native.
   if (url.hostname !== NATIVE_AUTH_HOST) {
-    return rawURL;
+    return defaultAuthURL;
   }
   let path = url.pathname.replace(/\/+$/, "");
   if (!path.endsWith("/fast")) {
