@@ -1,0 +1,5 @@
+fix: use /auth/v1/native/ instead of broken /auth/v1/native/fast/
+
+Apple /fast/ endpoint is broken: returns 301 with no Location header,
+204, or 404 inconsistently. The /native/ endpoint returns 200 reliably
+and also requires a SAP signature. Stop appending /fast to auth URLs.
