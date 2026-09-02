@@ -6,31 +6,13 @@ export interface BagOutput {
 }
 
 export const defaultAuthURL =
-  "https://auth.itunes.apple.com/auth/v1/native/";
+  "https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/authenticate";
 
-const NATIVE_AUTH_HOST = "auth.itunes.apple.com";
-
-// Apple's /auth/v1/native/fast/ endpoint is broken (returns 301 with no
-// Location header, 204, or 404 inconsistently). The /auth/v1/native/
-// endpoint works reliably and also requires a SAP signature.
-// The legacy buy.itunes.apple.com authenticate endpoint is deprecated
-// (returns 204 even with a valid SAP signature), so override it too.
+// Use the auth endpoint from the bag directly. ipatool does the same and it
+// works with a valid SAP signature. Previous overrides to auth.itunes.apple.com
+// caused 204 responses because the SAP signature validation differs per endpoint.
 export function normalizeAuthURL(rawURL: string): string {
-  let url: URL;
-  try {
-    url = new URL(rawURL);
-  } catch {
-    return defaultAuthURL;
-  }
-  // Non-auth.itunes.apple.com hosts use the default native endpoint.
-  if (url.hostname !== NATIVE_AUTH_HOST) {
-    return defaultAuthURL;
-  }
-  // Strip /fast if present and normalise to /auth/v1/native/
-  let path = url.pathname.replace(/\/+$/, "");
-  path = path.replace(/\/fast$/, "");
-  url.pathname = `${path}/`;
-  return url.toString();
+  return rawURL || defaultAuthURL;
 }
 
 // Fetches the bag via the backend proxy.

@@ -75,7 +75,7 @@ export async function authenticate(
       const signature = await signAction(new TextEncoder().encode(plistBody));
 
       const headers: Record<string, string> = {
-        "Content-Type": "application/x-apple-plist",
+        "Content-Type": "application/x-www-form-urlencoded",
         "X-Apple-ActionSignature": base64(signature),
       };
 
