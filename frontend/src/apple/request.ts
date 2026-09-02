@@ -43,7 +43,6 @@ export async function appleRequest(
     headers,
     body: opts.body,
     redirect: "manual",
-    _libcurl_http_version: 1.1,
   });
 
   const responseHeaders: Record<string, string> = {};
