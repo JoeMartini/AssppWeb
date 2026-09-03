@@ -1,8 +1,7 @@
-fix: retry on 204/empty auth responses (Apple server-side flakiness)
+fix: retry on all transient Apple auth failures (301/no-location, 404, HTML body)
 
-Apple's auth servers intermittently return 204/empty responses even with
-a valid SAP signature. This is a known server-side issue confirmed by
-ipatool issue #530 ("after some retries it works well").
-
-Increase max attempts from 2 to 6 and add 2s delay between retries on
-empty body responses instead of failing immediately.
+Apple's servers return 301 (no Location), 404, 403, 204, 500, and HTML
+bodies intermittently even with a valid SAP signature. Now ALL non-200
+responses, empty bodies, and plist parse failures are retried up to 6
+times with 2s delay. Only 2FA requirement and valid plist results
+short-circuit the retry loop.

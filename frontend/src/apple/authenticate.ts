@@ -109,11 +109,16 @@ export async function authenticate(
       const podHeader = response.headers["pod"];
       const pod = podHeader || undefined;
 
-      // Handle redirect. The native /fast auth host can answer with 301 as
-      // well as the usual 302, so follow the full set of redirect statuses.
+      // Handle redirect. Apple's buy endpoint sometimes 301s to a store pod;
+      // follow the full set of redirect statuses. If there's no Location
+      // header (Apple server bug), treat as transient and retry.
       if ([301, 302, 303, 307, 308].includes(response.status)) {
         const location = response.headers["location"];
         if (!location) {
+          if (currentAttempt < MAX_AUTH_ATTEMPTS) {
+            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+            continue;
+          }
           throw new Error(i18n.t("errors.auth.redirectLocation"));
         }
         const url = new URL(location);
@@ -124,10 +129,10 @@ export async function authenticate(
         continue;
       }
 
-      // Handle non-plist responses (e.g. 403/204 with empty body).
+      // Handle non-plist responses (e.g. 204/403/404/500 with empty or HTML body).
       // Apple intermittently returns these even with a valid SAP signature;
       // wait briefly and let the loop retry.
-      if (!response.body.trim()) {
+      if (response.status !== 200 || !response.body.trim()) {
         if (currentAttempt < MAX_AUTH_ATTEMPTS) {
           await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
           continue;
@@ -137,7 +142,20 @@ export async function authenticate(
         );
       }
 
-      const dict = parsePlist(response.body) as Record<string, any>;
+      // Try to parse as plist; if it fails (e.g. Apple returned HTML),
+      // treat as transient and retry.
+      let dict: Record<string, any>;
+      try {
+        dict = parsePlist(response.body) as Record<string, any>;
+      } catch {
+        if (currentAttempt < MAX_AUTH_ATTEMPTS) {
+          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+          continue;
+        }
+        throw new Error(
+          i18n.t("errors.auth.emptyBody", { status: response.status }),
+        );
+      }
 
       // Check for 2FA requirement
       if (
