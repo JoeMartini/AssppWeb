@@ -55,7 +55,13 @@ export async function authenticate(
   let currentAttempt = 0;
   let redirectAttempt = 0;
 
-  while (currentAttempt < 2 && redirectAttempt <= 3) {
+  const MAX_AUTH_ATTEMPTS = 6;
+  const RETRY_DELAY_MS = 2000;
+
+  // Apple's auth servers intermittently return 204/empty responses even with
+  // a valid SAP signature. ipatool issue #530 confirms this is a known
+  // server-side problem -- retrying eventually succeeds.
+  while (currentAttempt < MAX_AUTH_ATTEMPTS && redirectAttempt <= 3) {
     currentAttempt++;
 
     try {
@@ -118,8 +124,14 @@ export async function authenticate(
         continue;
       }
 
-      // Handle non-plist responses (e.g. 403 with empty body)
+      // Handle non-plist responses (e.g. 403/204 with empty body).
+      // Apple intermittently returns these even with a valid SAP signature;
+      // wait briefly and let the loop retry.
       if (!response.body.trim()) {
+        if (currentAttempt < MAX_AUTH_ATTEMPTS) {
+          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+          continue;
+        }
         throw new Error(
           i18n.t("errors.auth.emptyBody", { status: response.status }),
         );

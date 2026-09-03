@@ -1,9 +1,8 @@
-fix: use bag auth endpoint directly + match ipatool Content-Type
+fix: retry on 204/empty auth responses (Apple server-side flakiness)
 
-Revert auth URL overrides. ipatool uses the bag authenticateAccount
-endpoint (buy.itunes.apple.com) directly with a valid SAP signature
-and it works. Our overrides to auth.itunes.apple.com caused 204
-responses due to different SAP validation per endpoint.
+Apple's auth servers intermittently return 204/empty responses even with
+a valid SAP signature. This is a known server-side issue confirmed by
+ipatool issue #530 ("after some retries it works well").
 
-Also change Content-Type from application/x-apple-plist to
-application/x-www-form-urlencoded to match ipatool exactly.
+Increase max attempts from 2 to 6 and add 2s delay between retries on
+empty body responses instead of failing immediately.
